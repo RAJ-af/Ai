@@ -43,27 +43,31 @@ class CEOAgent(BaseAgent):
 
         for task in self.tasks:
             self.statuses[task["id"]] = "In Progress"
-            state["agent_outputs"][task["agent"].name] = f"Starting {task['name']}..."
+            agent_name = task["agent"].name
+            state["agent_outputs"][agent_name] = "Informing agent..."
 
-            yield self.get_todo_list(), f"🔄 **{task['agent'].name}** is building {task['name']}...", "", None, state
+            yield self.get_todo_list(), f"🔄 **{agent_name}** is building {task['name']}...", "", None, state
 
             prompt = (
                 f"PHASE: {task['name']}\nPlan:\n{approved_plan}\n"
                 f"Previous:\n{context[-1000:]}\nPerform your duties. Show reasoning."
             )
 
-            response = task["agent"].chat(prompt)
+            # Streaming worker output
+            current_response = ""
+            for partial in task["agent"].chat_stream(prompt):
+                current_response = partial
+                state["agent_outputs"][agent_name] = current_response
+                # Update dashboard with partial output
+                yield self.get_todo_list(), f"🔄 **{agent_name}** is building {task['name']}...", current_response, None, state
+
             self.statuses[task["id"]] = "Completed"
-            state["agent_outputs"][task["agent"].name] = response
+            full_output.append(f"--- {agent_name} Output ---\n{current_response}")
+            context += f"\n\n{agent_name} finished: {current_response[:300]}..."
 
-            full_output.append(f"--- {task['agent'].name} Output ---\n{response}")
-            context += f"\n\n{task['agent'].name} finished: {response[:300]}..."
-
-            yield self.get_todo_list(), f"✅ **{task['agent'].name}** done.", response, None, state
+            yield self.get_todo_list(), f"✅ **{agent_name}** done.", current_response, None, state
 
         final_result = "\n\n".join(full_output)
-
-        # Zip logic
         zip_buffer = create_project_zip([final_result])
         fd, zip_path = tempfile.mkstemp(suffix=".zip")
         with os.fdopen(fd, 'wb') as f:
