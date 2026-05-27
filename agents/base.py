@@ -1,4 +1,6 @@
 import os
+import time
+import logging
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
@@ -7,6 +9,10 @@ from typing import Any, List, Optional, Union, Dict
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class MockLLM(BaseChatModel):
     """
@@ -69,12 +75,28 @@ class BaseAgent:
         self.memory: List[BaseMessage] = []
         self.system_message = SystemMessage(content=f"You are {name}, the {role}. Your goal is: {goal}")
 
-    def chat(self, user_input: str) -> str:
+    def chat(self, user_input: str, max_retries: int = 3) -> str:
         messages = [self.system_message] + self.memory + [HumanMessage(content=user_input)]
-        response = self.llm.invoke(messages)
-        self.memory.append(HumanMessage(content=user_input))
-        self.memory.append(response)
-        return response.content
+
+        for attempt in range(max_retries):
+            try:
+                response = self.llm.invoke(messages)
+                self.memory.append(HumanMessage(content=user_input))
+                self.memory.append(response)
+                return response.content
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Attempt {attempt + 1} failed for agent {self.name}: {error_msg}")
+
+                # Check for rate limit (429) or other retryable errors
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) + 1
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    return f"❌ Error from {self.name}: {error_msg}. Please try again later or type /new to reset."
+
+        return "❌ An unexpected error occurred. Please try again."
 
     def clear_memory(self):
         self.memory = []

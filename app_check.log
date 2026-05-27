@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/app/app.py", line 127, in <module>
+    chatbot = gr.Chatbot(label="Boss AI Chat", type="messages") # Explicitly set type to messages
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/site-packages/gradio/component_meta.py", line 194, in wrapper
+    return fn(self, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+TypeError: Chatbot.__init__() got an unexpected keyword argument 'type'
+INFO:httpx:HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://api.gradio.app/pkg-version "HTTP/1.1 200 OK"
