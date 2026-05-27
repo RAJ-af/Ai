@@ -1,0 +1,7 @@
+gradio
+langchain
+langchain-community
+langchain-core
+langchain-nvidia-ai-endpoints
+pydantic
+python-dotenv
