@@ -6,9 +6,6 @@ from agents.planner import PlannerAgent
 from agents.ceo import CEOAgent
 from utils.file_manager import create_project_zip
 
-def get_agents():
-    return BossAgent(), PlannerAgent(), CEOAgent()
-
 def chat_with_boss(message, history, boss_agent, state):
     response = boss_agent.interview(message)
 
@@ -48,7 +45,11 @@ def run_execution_ui(approved_plan, state, ceo_agent):
 
     yield output, zip_path
 
-with gr.Blocks(theme=gr.themes.Soft()) as demo:
+# Initialize agents in state
+def init_session():
+    return BossAgent(), PlannerAgent(), CEOAgent(), {}
+
+with gr.Blocks() as demo:
     # Session-specific agents and state
     boss_agent = gr.State(BossAgent)
     planner_agent = gr.State(PlannerAgent)
@@ -61,11 +62,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Tab("1. Interview (Boss AI)"):
         gr.Markdown("### Phase 1: Requirements Gathering\nTalk to the Boss AI to define your project.")
 
-        # We need a way to initialize the stateful agents.
-        # In Gradio 4+, we can just use the classes if they are stateless,
-        # but here they have memory. So we instantiate them.
-
-        chat_interface = gr.ChatInterface(
+        gr.ChatInterface(
             fn=chat_with_boss,
             additional_inputs=[boss_agent, session_state],
         )
@@ -94,11 +91,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
             outputs=[exec_status, file_download]
         )
 
-# Initialize agents in state
-def init_session():
-    return BossAgent(), PlannerAgent(), CEOAgent(), {}
-
-demo.load(init_session, outputs=[boss_agent, planner_agent, ceo_agent, session_state])
+    demo.load(init_session, outputs=[boss_agent, planner_agent, ceo_agent, session_state])
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(theme=gr.themes.Soft())
