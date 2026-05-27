@@ -22,7 +22,6 @@ class MockLLM(BaseChatModel):
         response_content = f"[MOCK RESPONSE to: {last_message[:50]}...]"
         lower_msg = last_message.lower()
 
-        # Scenario-based responses
         if "ecommerce" in lower_msg or "e-commerce" in lower_msg:
             response_content = "I understand you want to build an e-commerce platform. Should it include features like a shopping cart and payment gateway? READY_TO_PLAN"
 
@@ -65,6 +64,7 @@ class BaseAgent:
         self.name = name
         self.role = role
         self.goal = goal
+        self.model_name = model_name
         self.llm = get_llm(model_name)
         self.memory: List[BaseMessage] = []
         self.system_message = SystemMessage(content=f"You are {name}, the {role}. Your goal is: {goal}")
@@ -78,3 +78,16 @@ class BaseAgent:
 
     def clear_memory(self):
         self.memory = []
+
+    def get_state(self) -> Dict:
+        return {
+            "memory": [{"type": m.type, "content": m.content} for m in self.memory]
+        }
+
+    def load_state(self, state: Dict):
+        self.memory = []
+        for m in state.get("memory", []):
+            if m["type"] == "human":
+                self.memory.append(HumanMessage(content=m["content"]))
+            elif m["type"] == "ai":
+                self.memory.append(AIMessage(content=m["content"]))
