@@ -124,7 +124,7 @@ with gr.Blocks() as demo:
     gr.Markdown("Transform your ideas into code. Use **/new** to reset the session.")
 
     with gr.Tab("1. Interview (Boss AI)"):
-        chatbot = gr.Chatbot(label="Boss AI Chat", type="messages") # Explicitly set type to messages
+        chatbot = gr.Chatbot(label="Boss AI Chat") # Explicitly set type to messages
         msg = gr.Textbox(label="Your Message (Type /new to reset)")
 
         msg.submit(chat_with_boss, inputs=[msg, chatbot, session_state], outputs=[chatbot, session_state, msg])
