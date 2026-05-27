@@ -2,6 +2,7 @@ name: Sync to Hugging Face hub
 on:
   push:
     branches: [main, ai-dev-team-scratch]
+  workflow_dispatch:
 
 jobs:
   sync-to-hub:
