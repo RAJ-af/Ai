@@ -14,7 +14,7 @@ def get_initial_state():
         "boss_state": {},
         "planner_state": {},
         "ceo_state": {},
-        "chat_history": [] # Now a list of {"role": "...", "content": "..."}
+        "chat_history": []
     }
 
 def restore_agents(state):
@@ -40,11 +40,15 @@ def chat_with_boss(message, history, state):
     response = boss.interview(message)
     state["boss_state"] = boss.get_state()
 
+    # Check if ready
+    if boss.is_ready(response):
+        state['is_interview_complete'] = True
+        response += "\n\n✅ **Interview Complete!** The project is ready for planning. Go to the **2. Planning** tab."
+
     state["chat_history"].append({"role": "user", "content": message})
     state["chat_history"].append({"role": "assistant", "content": response})
 
-    if boss.is_ready(response):
-        state['is_interview_complete'] = True
+    if state['is_interview_complete']:
         summary = ""
         for msg in state["chat_history"]:
             role = "User" if msg["role"] == "user" else "AI"
@@ -53,9 +57,26 @@ def chat_with_boss(message, history, state):
 
     return state["chat_history"], state, ""
 
+def manual_complete(state):
+    if not state: state = get_initial_state()
+    state['is_interview_complete'] = True
+
+    summary = ""
+    for msg in state.get("chat_history", []):
+        role = "User" if msg["role"] == "user" else "AI"
+        summary += f"{role}: {msg['content']}\n"
+    state['project_summary'] = summary
+
+    state["chat_history"].append({
+        "role": "assistant",
+        "content": "✅ **Manual Override:** Interview marked as complete. You can now proceed to the **2. Planning** tab."
+    })
+
+    return state["chat_history"], state
+
 def generate_plan_ui(state):
     if not state.get('is_interview_complete'):
-        return "Please complete the Boss AI interview first.", gr.update(visible=False), gr.update(visible=False), state
+        return "⚠️ Please complete the Boss AI interview first (or use the 'Finish Interview' button).", gr.update(visible=False), gr.update(visible=False), state
 
     try:
         boss, planner, ceo = restore_agents(state)
@@ -99,7 +120,6 @@ def on_load(state):
     if not state:
         state = get_initial_state()
 
-    # Handle legacy chat_history format if it exists (for backward compatibility during migration)
     chat_history = state.get("chat_history", [])
     formatted_history = []
     for m in chat_history:
@@ -124,10 +144,12 @@ with gr.Blocks() as demo:
     gr.Markdown("Transform your ideas into code. Use **/new** to reset the session.")
 
     with gr.Tab("1. Interview (Boss AI)"):
-        chatbot = gr.Chatbot(label="Boss AI Chat") # Explicitly set type to messages
+        chatbot = gr.Chatbot(label="Boss AI Chat")
         msg = gr.Textbox(label="Your Message (Type /new to reset)")
+        finish_btn = gr.Button("Finish Interview & Start Planning", variant="secondary")
 
         msg.submit(chat_with_boss, inputs=[msg, chatbot, session_state], outputs=[chatbot, session_state, msg])
+        finish_btn.click(manual_complete, inputs=[session_state], outputs=[chatbot, session_state])
 
     with gr.Tab("2. Planning (Architect AI)"):
         plan_btn = gr.Button("Generate PRD & Plan", variant="primary")

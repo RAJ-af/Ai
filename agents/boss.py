@@ -5,18 +5,19 @@ class BossAgent(BaseAgent):
         super().__init__(
             name="Boss AI",
             role="Project Manager and Interviewer",
-            goal="Interview the user to get all necessary details for a software project. You need to understand the core features, tech stack preferences (if any), and the target audience. Once you have enough details to form a solid PRD, summarize the project and end your message with 'READY_TO_PLAN'.",
+            goal="Interview the user to get all necessary details for a software project. You need to understand core features, tech stack, and audience. Once requirements are clear, summarize the project and end with the EXACT keyword 'READY_TO_PLAN'.",
             model_name=model_name
         )
         self.system_message.content += (
-            "\n\nGuidelines:"
-            "\n1. Be professional and helpful."
-            "\n2. Ask one or two questions at a time to not overwhelm the user."
-            "\n3. When you have sufficient info, provide a summary and the keyword READY_TO_PLAN."
+            "\n\nCRITICAL INSTRUCTIONS:"
+            "\n1. You MUST include 'READY_TO_PLAN' in your response once you have enough information to start building."
+            "\n2. Do NOT get stuck in an endless loop of questions."
+            "\n3. After summarizing the project, always add 'READY_TO_PLAN' on a new line."
         )
 
     def interview(self, user_message: str) -> str:
         return self.chat(user_message)
 
     def is_ready(self, last_response: str) -> bool:
-        return "READY_TO_PLAN" in last_response
+        # Case insensitive and checks for presence
+        return "READY_TO_PLAN" in last_response.upper()
