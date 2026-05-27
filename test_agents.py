@@ -10,19 +10,17 @@ def test_mock_agents():
 
     boss = BossAgent()
     resp = boss.chat("I want an e-commerce site")
-    print(f"Boss response: {resp}")
     assert "READY_TO_PLAN" in resp.upper()
 
     planner = PlannerAgent()
-    plan = planner.generate_plan("User wants e-commerce")
-    print(f"Plan summary: {plan[:50]}...")
+    plan = planner.generate_plan("Summary")
+    assert "MERMAID" in plan.upper() or "[MOCK RESPONSE" in plan
 
     ceo = CEOAgent()
-    # execute_project is now a generator
-    gen = ceo.execute_project("My Plan")
-    todo, status, worker_out = next(gen)
-    print(f"CEO Status: {status}")
-    assert "working on" in status
+    state = {"agent_outputs": {}}
+    gen = ceo.execute_project_with_dashboard("Plan", state)
+    todo, status, worker_out, zip_path, s = next(gen)
+    assert "UI/UX Agent" in status
 
 if __name__ == "__main__":
     test_mock_agents()

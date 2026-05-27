@@ -5,10 +5,14 @@ class PlannerAgent(BaseAgent):
         super().__init__(
             name="Planner AI",
             role="Solution Architect",
-            goal="Create a detailed PRD (Product Requirements Document) and Technical Design for the project. Include tech stack, file structure, and feature list in Markdown format.",
+            goal="Create a detailed PRD and Technical Design. Include tech stack, file structure, and a MERMAID diagram for the architecture.",
             model_name=model_name
         )
 
     def generate_plan(self, project_summary: str) -> str:
-        prompt = f"Based on this project summary: {project_summary}\n\nGenerate a comprehensive PRD and Technical Plan in Markdown format."
+        prompt = (
+            f"Project Summary: {project_summary}\n\n"
+            "Generate a comprehensive PRD and Technical Plan in Markdown.\n"
+            "CRITICAL: You MUST include a Mermaid diagram block (graph TD ...) to visualize the system architecture or database schema."
+        )
         return self.chat(prompt)
