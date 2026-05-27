@@ -54,14 +54,14 @@ A modern e-commerce platform.
     def _llm_type(self) -> str:
         return "mock"
 
-def get_llm(model_name: str = "meta/llama-3.1-405b-instruct") -> Union[ChatNVIDIA, MockLLM]:
+def get_llm(model_name: str = "meta/llama-3.1-70b-instruct") -> Union[ChatNVIDIA, MockLLM]:
     api_key = os.getenv("NVIDIA_API_KEY")
     if not api_key or api_key == "mock":
         return MockLLM()
     return ChatNVIDIA(model=model_name, nvidia_api_key=api_key)
 
 class BaseAgent:
-    def __init__(self, name: str, role: str, goal: str, model_name: str = "meta/llama-3.1-405b-instruct"):
+    def __init__(self, name: str, role: str, goal: str, model_name: str = "meta/llama-3.1-70b-instruct"):
         self.name = name
         self.role = role
         self.goal = goal

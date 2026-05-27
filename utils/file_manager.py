@@ -4,8 +4,9 @@ import zipfile
 import io
 
 def extract_code_blocks(text):
-    # Matches [CODE_START]filename\ncode\n[CODE_END]
-    pattern = r"\[CODE_START\](.*?)\n(.*?)\n\[CODE_END\]"
+    # Matches [CODE_START]filename\ncode[CODE_END]
+    # We use a more flexible regex that handles optional whitespace
+    pattern = r"\[CODE_START\]\s*(.*?)\s*\n(.*?)\s*\[CODE_END\]"
     matches = re.findall(pattern, text, re.DOTALL)
     return matches
 

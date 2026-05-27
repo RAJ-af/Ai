@@ -1,7 +1,7 @@
 from agents.base import BaseAgent
 
 class PlannerAgent(BaseAgent):
-    def __init__(self, model_name: str = "meta/llama-3.1-405b-instruct"):
+    def __init__(self, model_name: str = "meta/llama-3.1-70b-instruct"):
         super().__init__(
             name="Planner AI",
             role="Solution Architect",

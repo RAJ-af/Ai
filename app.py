@@ -1,80 +1,104 @@
 import gradio as gr
 import os
+import tempfile
 from agents.boss import BossAgent
 from agents.planner import PlannerAgent
 from agents.ceo import CEOAgent
 from utils.file_manager import create_project_zip
-import tempfile
 
-# State management
-class GlobalState:
-    def __init__(self):
-        self.boss = BossAgent()
-        self.planner = PlannerAgent()
-        self.ceo = CEOAgent()
-        self.project_summary = ""
-        self.is_interview_complete = False
+def get_agents():
+    return BossAgent(), PlannerAgent(), CEOAgent()
 
-gs = GlobalState()
+def chat_with_boss(message, history, boss_agent, state):
+    response = boss_agent.interview(message)
 
-def chat_with_boss(message, history):
-    response = gs.boss.interview(message)
-    if gs.boss.is_ready(response):
-        gs.is_interview_complete = True
-        # history is a list of tuples in older gradio or different in newer
-        summary_parts = []
-        for h in history:
-            # h might be a dict or a list depending on Gradio version
-            if isinstance(h, dict):
-                role = h.get("role")
-                content = h.get("content")
-                summary_parts.append(f"{role}: {content}")
-            else:
-                summary_parts.append(f"User: {h[0]}\nAI: {h[1]}")
-        summary_parts.append(f"User: {message}\nAI: {response}")
-        gs.project_summary = "\n".join(summary_parts)
-        return response + "\n\n✅ **Interview Complete!** Go to the '2. Planning' tab."
+    if boss_agent.is_ready(response):
+        state['is_interview_complete'] = True
+
+        summary = ""
+        for user_msg, ai_msg in history:
+            summary += f"User: {user_msg}\nAI: {ai_msg}\n"
+        summary += f"User: {message}\nAI: {response}"
+        state['project_summary'] = summary
+
+        return response + "\n\n✅ **Interview Complete!** Please move to the **2. Planning** tab."
+
     return response
 
-def generate_plan_ui():
-    if not gs.is_interview_complete:
+def generate_plan_ui(state, planner_agent):
+    if not state.get('is_interview_complete'):
         return "Please complete the Boss AI interview first.", gr.update(visible=False), gr.update(visible=False)
-    plan = gs.planner.generate_plan(gs.project_summary)
+
+    summary = state.get('project_summary', '')
+    plan = planner_agent.generate_plan(summary)
+    state['plan'] = plan
+
     return plan, gr.update(value=plan, visible=True), gr.update(visible=True)
 
-def run_execution_ui(approved_plan):
-    yield "🚀 CEO is starting the project...", None
-    output = gs.ceo.execute_project(approved_plan)
+def run_execution_ui(approved_plan, state, ceo_agent):
+    yield "🚀 CEO is assembling the team and starting development...", None
+
+    output = ceo_agent.execute_project(approved_plan)
 
     # Create ZIP
     zip_buffer = create_project_zip([output])
-    temp_dir = tempfile.gettempdir()
-    zip_path = os.path.join(temp_dir, "project_source.zip")
-    with open(zip_path, "wb") as f:
+    fd, zip_path = tempfile.mkstemp(suffix=".zip")
+    with os.fdopen(fd, 'wb') as f:
         f.write(zip_buffer.getbuffer())
 
     yield output, zip_path
 
-with gr.Blocks() as demo:
-    gr.Markdown("# 🤖 Team AI Developer")
-    gr.Markdown("Build entire projects from scratch using an autonomous AI team.")
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
+    # Session-specific agents and state
+    boss_agent = gr.State(BossAgent)
+    planner_agent = gr.State(PlannerAgent)
+    ceo_agent = gr.State(CEOAgent)
+    session_state = gr.State({})
 
-    with gr.Tab("1. Boss AI Interview"):
-        gr.ChatInterface(chat_with_boss)
+    gr.Markdown("# 🤖 Autonomous AI Developer Team")
+    gr.Markdown("Transform your ideas into code using a specialized squad of AI agents.")
 
-    with gr.Tab("2. Planning"):
+    with gr.Tab("1. Interview (Boss AI)"):
+        gr.Markdown("### Phase 1: Requirements Gathering\nTalk to the Boss AI to define your project.")
+
+        # We need a way to initialize the stateful agents.
+        # In Gradio 4+, we can just use the classes if they are stateless,
+        # but here they have memory. So we instantiate them.
+
+        chat_interface = gr.ChatInterface(
+            fn=chat_with_boss,
+            additional_inputs=[boss_agent, session_state],
+        )
+
+    with gr.Tab("2. Planning (Architect AI)"):
+        gr.Markdown("### Phase 2: PRD & Technical Design")
         plan_btn = gr.Button("Generate PRD & Plan", variant="primary")
-        plan_display = gr.Markdown("### Project Plan will appear here...")
-        plan_edit = gr.Textbox(label="Edit Plan / PRD", lines=15, visible=False)
-        approve_btn = gr.Button("Approve & Start Coding", variant="stop", visible=False)
+        plan_display = gr.Markdown("*Your plan will appear here after generation...*")
+        plan_edit = gr.Textbox(label="Review & Edit PRD/Plan", lines=15, visible=False)
+        approve_btn = gr.Button("Approve & Start Execution", variant="stop", visible=False)
 
-        plan_btn.click(generate_plan_ui, outputs=[plan_display, plan_edit, approve_btn])
+        plan_btn.click(
+            generate_plan_ui,
+            inputs=[session_state, planner_agent],
+            outputs=[plan_display, plan_edit, approve_btn]
+        )
 
-    with gr.Tab("3. Execution & Download"):
-        exec_status = gr.Markdown("### Execution Results")
-        file_download = gr.File(label="Download Generated Source Code (ZIP)")
+    with gr.Tab("3. Execution & Code Delivery"):
+        gr.Markdown("### Phase 3: Development & Packaging")
+        exec_status = gr.Markdown("Waiting for approval...")
+        file_download = gr.File(label="Download Source Code (ZIP)")
 
-        approve_btn.click(run_execution_ui, inputs=[plan_edit], outputs=[exec_status, file_download])
+        approve_btn.click(
+            run_execution_ui,
+            inputs=[plan_edit, session_state, ceo_agent],
+            outputs=[exec_status, file_download]
+        )
+
+# Initialize agents in state
+def init_session():
+    return BossAgent(), PlannerAgent(), CEOAgent(), {}
+
+demo.load(init_session, outputs=[boss_agent, planner_agent, ceo_agent, session_state])
 
 if __name__ == "__main__":
     demo.launch()
