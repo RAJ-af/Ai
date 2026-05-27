@@ -7,7 +7,7 @@ class CEOAgent(BaseAgent):
         super().__init__(
             name="CEO AI",
             role="Chief Executive Officer",
-            goal="Oversee the entire development process, assign tasks to specialized agents, and ensure the project is completed correctly based on the PRD.",
+            goal="Oversee the entire development process, assign tasks, and monitor progress.",
             model_name=model_name
         )
         self.uiux = UIUXAgent(model_name)
@@ -16,23 +16,46 @@ class CEOAgent(BaseAgent):
         self.qa = QAAgent(model_name)
         self.devops = DevOpsAgent(model_name)
 
-    def execute_project(self, approved_plan: str):
-        steps = [
-            ("UI/UX Design & Theming", self.uiux),
-            ("Backend Logic & API", self.backend),
-            ("Frontend Implementation", self.frontend),
-            ("Quality Assurance & Bug Fixes", self.qa),
-            ("DevOps & Deployment Configuration", self.devops)
+        self.tasks = [
+            {"id": "uiux", "name": "UI/UX Design & Mockups", "status": "Pending", "agent": self.uiux},
+            {"id": "backend", "name": "Backend API & Logic", "status": "Pending", "agent": self.backend},
+            {"id": "frontend", "name": "Frontend Implementation", "status": "Pending", "agent": self.frontend},
+            {"id": "qa", "name": "Quality Assurance & Testing", "status": "Pending", "agent": self.qa},
+            {"id": "devops", "name": "DevOps & Deployment Setup", "status": "Pending", "agent": self.devops},
         ]
 
-        full_output = []
+    def get_todo_list(self):
+        todo = "### 📋 Project Roadmap\n"
+        for t in self.tasks:
+            icon = "⏳" if t["status"] == "Pending" else ("🚀" if t["status"] == "In Progress" else "✅")
+            todo += f"- {icon} **{t['name']}** ({t['status']})\n"
+        return todo
+
+    def execute_project(self, approved_plan: str):
         context = approved_plan
+        full_output = []
 
-        for step_name, agent in steps:
-            prompt = f"### TASK: {step_name}\n\nProject PRD & Plan:\n{approved_plan}\n\nPrevious Progress/Context:\n{context[-2000:] if len(context) > 2000 else context}\n\nPlease generate the necessary files and code for this phase."
-            response = agent.chat(prompt)
-            full_output.append(f"--- {agent.name} Output ---\n{response}")
-            # Add to context for next agent
-            context += f"\n\n{agent.name} implemented: {response[:500]}..."
+        # Reset task statuses
+        for t in self.tasks: t["status"] = "Pending"
 
-        return "\n\n".join(full_output)
+        for task in self.tasks:
+            task["status"] = "In Progress"
+            yield self.get_todo_list(), f"🔄 **{task['agent'].name}** is now working on {task['name']}...", ""
+
+            prompt = (
+                f"### PHASE: {task['name']}\n\n"
+                f"Project Plan:\n{approved_plan}\n\n"
+                f"Previous Context:\n{context[-1500:]}\n\n"
+                f"Perform your duties. Use simulated tools if needed (e.g., [SEARCH: query], [WRITE_FILE: path])."
+            )
+
+            response = task["agent"].chat(prompt)
+            task["status"] = "Completed"
+
+            full_output.append(f"--- {task['agent'].name} Output ---\n{response}")
+            context += f"\n\n{task['agent'].name} finished: {response[:300]}..."
+
+            yield self.get_todo_list(), f"🏁 **{task['agent'].name}** has completed their task.", response
+
+        final_result = "\n\n".join(full_output)
+        yield self.get_todo_list(), "🎉 **Project fully completed!**", final_result

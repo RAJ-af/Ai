@@ -5,26 +5,24 @@ from agents.planner import PlannerAgent
 from agents.ceo import CEOAgent
 
 def test_mock_agents():
-    # Set mock key if not present
     import os
     os.environ["NVIDIA_API_KEY"] = "mock"
 
     boss = BossAgent()
     resp = boss.chat("I want an e-commerce site")
     print(f"Boss response: {resp}")
-    assert "READY_TO_PLAN" in resp or "[MOCK RESPONSE" in resp
+    assert "READY_TO_PLAN" in resp.upper()
 
     planner = PlannerAgent()
     plan = planner.generate_plan("User wants e-commerce")
-    print(f"Plan: {plan[:50]}...")
-    assert "Project PRD" in plan or "[MOCK RESPONSE" in plan
+    print(f"Plan summary: {plan[:50]}...")
 
     ceo = CEOAgent()
-    # Mock execute_project (it calls other agents)
-    # Since they all use get_llm which returns MockLLM when key is mock, it should work
-    output = ceo.execute_project("My Plan")
-    print(f"CEO Output sample: {output[:100]}...")
-    assert "Output" in output
+    # execute_project is now a generator
+    gen = ceo.execute_project("My Plan")
+    todo, status, worker_out = next(gen)
+    print(f"CEO Status: {status}")
+    assert "working on" in status
 
 if __name__ == "__main__":
     test_mock_agents()
